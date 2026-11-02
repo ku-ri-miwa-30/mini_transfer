@@ -1,3 +1,4 @@
+
 """ミニファイル授受アプリ Step 1：REST API と FastAPI
 
 ルール
@@ -45,17 +46,20 @@ def health_check():
 # ---------------------------------------------------------------
 # TODO
 # ここが何をしているのか不明
+#  なぜここでstatus_codeを指定しているのか
+# →デコレーター上でstatus_codeを記述することで成功したときにこの値が帰るようになる
 @app.post("/files", status_code=201)
-async def upload_file(file):
+async def upload_file(file: UploadFile):
     file_id = len(files)+1
     path = STORAGE / f"{file_id}_{file.filename}"
     # 何をしている？
     path.write_bytes(await file.read())
     # filesのリストに今回アップロードされたファイルを追加している
     files.append({"id": file_id, "name": file.filename, "path": str(path)})
-    size = size(file)
-    status_code = 201
-    return {"id": file_id, "name": file.file_name, "size": size}
+    size = file.size
+    print(f"ファイルリストの中身を表示する{files}")
+    print(f"size は {size}")
+    return {"id": file_id, "name": file.filename, "size": file.size}
 
 
 # ---------------------------------------------------------------
@@ -64,25 +68,22 @@ async def upload_file(file):
 #   - 各要素は {"id", "name", "size"} の3つ（path は返さない）
 #   - 1件もなければ []
 # ---------------------------------------------------------------
-# TODO
 @app.get("/files")
 def list_files():
-    # path=
-    return [{"id": ["id"], "name": ["name"]} for f in files]
+    return [{"id": f["id"], "name": f["name"], "size": f["size"]} for f in files]
 
 # ---------------------------------------------------------------
 # Mission 4：ダウンロード
 #   GET /files/{file_id} でファイル本体を返す
 #   - 見つからなければ 404
 # ---------------------------------------------------------------
-# TODO
-@app.get("/files/{file_id}")
+@app.get("/files/{file_id}", status_code=200)
 def download(file_id: int):
     for f in files:
-        if ["id"] == file_id:
-            status_code=200
-            return FileResponse(["path"], filename=["name"])
-
+        if f["id"] == file_id:
+            
+            return FileResponse(f["path"], filename=f["name"])
+    print("該当するものがありません")
     raise HTTPException(status_code=404, detail="ファイルが見つかりません")
 # ---------------------------------------------------------------
 # Mission 5：削除
@@ -91,11 +92,10 @@ def download(file_id: int):
 #   - リストからも、STORAGE のファイル本体からも消す
 #   - 見つからなければ 404
 # ---------------------------------------------------------------
-# TODO
 @app.delete("/files/{file_id}")
-def delete(file_id):
+def delete(file_id: int):
     for f in files:
-        if ["file_id"] == file_id:
+        if f["id"] == file_id:
             files.pop(f)
             Path(f).unlink()
             return [{"status_code": 204}]
