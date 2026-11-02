@@ -31,6 +31,9 @@ ALLOWED_EXTENSIONS = {".txt", ".csv", ".pdf"}
 #   GET /health にアクセスすると {"status": "ok"} を返す
 # ---------------------------------------------------------------
 # TODO
+@app.get("/health")
+def health_check():
+    return {"status" : "ok"}
 
 
 # ---------------------------------------------------------------
@@ -41,6 +44,18 @@ ALLOWED_EXTENSIONS = {".txt", ".csv", ".pdf"}
 #   - id は 1, 2, 3... と増えていく
 # ---------------------------------------------------------------
 # TODO
+# ここが何をしているのか不明
+@app.post("/files", status_code=201)
+async def upload_file(file):
+    file_id = len(files)+1
+    path = STORAGE / f"{file_id}_{file.filename}"
+    # 何をしている？
+    path.write_bytes(await file.read())
+    # filesのリストに今回アップロードされたファイルを追加している
+    files.append({"id": file_id, "name": file.filename, "path": str(path)})
+    size = size(file)
+    status_code = 201
+    return {"id": file_id, "name": file.file_name, "size": size}
 
 
 # ---------------------------------------------------------------
@@ -50,7 +65,10 @@ ALLOWED_EXTENSIONS = {".txt", ".csv", ".pdf"}
 #   - 1件もなければ []
 # ---------------------------------------------------------------
 # TODO
-
+@app.get("/files")
+def list_files():
+    # path=
+    return [{"id": ["id"], "name": ["name"]} for f in files]
 
 # ---------------------------------------------------------------
 # Mission 4：ダウンロード
@@ -58,8 +76,14 @@ ALLOWED_EXTENSIONS = {".txt", ".csv", ".pdf"}
 #   - 見つからなければ 404
 # ---------------------------------------------------------------
 # TODO
+@app.get("/files/{file_id}")
+def download(file_id: int):
+    for f in files:
+        if ["id"] == file_id:
+            status_code=200
+            return FileResponse(["path"], filename=["name"])
 
-
+    raise HTTPException(status_code=404, detail="ファイルが見つかりません")
 # ---------------------------------------------------------------
 # Mission 5：削除
 #   DELETE /files/{file_id} でファイルを削除する
@@ -68,6 +92,14 @@ ALLOWED_EXTENSIONS = {".txt", ".csv", ".pdf"}
 #   - 見つからなければ 404
 # ---------------------------------------------------------------
 # TODO
+@app.delete("/files/{file_id}")
+def delete(file_id):
+    for f in files:
+        if ["file_id"] == file_id:
+            files.pop(f)
+            Path(f).unlink()
+            return [{"status_code": 204}]
+    return HTTPException(status_code=404, detail="ファイルが見つかりません")
 
 
 # ---------------------------------------------------------------
