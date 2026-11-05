@@ -22,7 +22,7 @@ STORAGE.mkdir(exist_ok=True)
 # 1件の形の例：{"id": 1, "name": "hello.txt", "size": 5, "path": "storage/1_hello.txt"}
 files: list[dict] = []
 
-next_id = 0  # 次に使う id（Mission 5 で必要になる。名前は変えない）
+next_id = 1  # 次に使う id（Mission 5 で必要になる。名前は変えない）
 
 ALLOWED_EXTENSIONS = {".txt", ".csv", ".pdf"}
 
@@ -49,23 +49,24 @@ def health_check():
 # デコレーター上でstatus_codeを記述することで成功したときにこの値が帰るようになる
 @app.post("/files", status_code=201)
 async def upload_file(file: UploadFile):
-    ext = file.filename
-    print(type(Path(ext)))
-    print(ext)
-    ext = Path(ext).suffix()
-
-    if not ext in ALLOWED_EXTENSIONS:
-        raise HTTPException(status_code=400)
-    if len(file) == 0:
-        raise HTTPException(status_code=400)
-
+    ext = Path(file.filename).suffix.lower()
     global next_id
     file_id = next_id
     path = STORAGE / f"{file_id}_{file.filename}"
-    # 何をしている？
-    path.write_bytes(await file.read())
+    content = await file.read()
+    size = len(content)
+    print(f"content は {content}")
+    if ext not in ALLOWED_EXTENSIONS:
+        raise HTTPException(status_code=400)
+    if size == 0:
+        raise HTTPException(status_code=400)
+
+    # アップロードされたファイルの中身を bytes で読み出す。時間がかかるかもしれない処理なので await で待つ
+    # その bytes を path（例：storage/1_hello.txt）に書き込む
+    # 受け取った中身を、サーバーのフォルダに保存する
+    path.write_bytes(content)
     # filesのリストに今回アップロードされたファイルを追加している
-    size = file.size
+
     files.append({"id": file_id, "name": file.filename, "path": str(path), "size": size})
     print(f"size は {size}")
     print(f"ファイルリストの中身を表示する{files}")
@@ -90,6 +91,7 @@ def list_files():
 #   GET /files/{file_id} でファイル本体を返す
 #   - 見つからなければ 404
 # ---------------------------------------------------------------
+# 
 @app.get("/files/{file_id}", status_code=200)
 def download(file_id: int):
     for f in files:
