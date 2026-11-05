@@ -31,7 +31,6 @@ ALLOWED_EXTENSIONS = {".txt", ".csv", ".pdf"}
 # Mission 1：生存確認API
 #   GET /health にアクセスすると {"status": "ok"} を返す
 # ---------------------------------------------------------------
-# TODO
 @app.get("/health")
 def health_check():
     return {"status" : "ok"}
@@ -44,22 +43,21 @@ def health_check():
 #   - 返すJSON：{"id": 1, "name": "hello.txt", "size": 5}
 #   - id は 1, 2, 3... と増えていく
 # ---------------------------------------------------------------
-# TODO
-# ここが何をしているのか不明
 # デコレーター上でstatus_codeを記述することで成功したときにこの値が帰るようになる
 @app.post("/files", status_code=201)
 async def upload_file(file: UploadFile):
     ext = Path(file.filename).suffix.lower()
+    if ext not in ALLOWED_EXTENSIONS:
+        raise HTTPException(status_code=400, detail="拡張子に誤りがあります")
+
     global next_id
     file_id = next_id
     path = STORAGE / f"{file_id}_{file.filename}"
     content = await file.read()
     size = len(content)
     print(f"content は {content}")
-    if ext not in ALLOWED_EXTENSIONS:
-        raise HTTPException(status_code=400)
     if size == 0:
-        raise HTTPException(status_code=400)
+        raise HTTPException(status_code=400, detail="ファイルが空です")
 
     # アップロードされたファイルの中身を bytes で読み出す。時間がかかるかもしれない処理なので await で待つ
     # その bytes を path（例：storage/1_hello.txt）に書き込む
@@ -68,13 +66,8 @@ async def upload_file(file: UploadFile):
     # filesのリストに今回アップロードされたファイルを追加している
 
     files.append({"id": file_id, "name": file.filename, "path": str(path), "size": size})
-    print(f"size は {size}")
-    print(f"ファイルリストの中身を表示する{files}")
-    print(f"next_id は {next_id}")
     next_id += 1
-    print(f"next_id は {next_id}")
     return {"id": file_id, "name": file.filename, "size": size}
-
 
 # ---------------------------------------------------------------
 # Mission 3：一覧
@@ -91,13 +84,11 @@ def list_files():
 #   GET /files/{file_id} でファイル本体を返す
 #   - 見つからなければ 404
 # ---------------------------------------------------------------
-# 
-@app.get("/files/{file_id}", status_code=200)
+@app.get("/files/{file_id}")
 def download(file_id: int):
     for f in files:
         if f["id"] == file_id:
             return FileResponse(f["path"], filename=f["name"])
-    print("該当するものがありません")
     raise HTTPException(status_code=404, detail="ファイルが見つかりません")
 # ---------------------------------------------------------------
 # Mission 5：削除
@@ -118,7 +109,6 @@ def delete(file_id: int):
     # return HTTPException(status_code=404, detail="ファイルが見つかりません")
 
     for f in files:
-        print(f"f : {f}")
         if f["id"] == file_id:
             files.remove(f)
             Path(f["path"]).unlink()
