@@ -49,6 +49,12 @@ def health_check():
 # デコレーター上でstatus_codeを記述することで成功したときにこの値が帰るようになる
 @app.post("/files", status_code=201)
 async def upload_file(file: UploadFile):
+    ext = Path(file.filename).suffix().lower()
+    if not ext in ALLOWED_EXTENSIONS:
+        raise HTTPException(status_code=400)
+    if len(file) == 0:
+        raise HTTPException(status_code=400)
+
     global next_id
     file_id = next_id
     path = STORAGE / f"{file_id}_{file.filename}"
