@@ -22,7 +22,7 @@ STORAGE.mkdir(exist_ok=True)
 # 1件の形の例：{"id": 1, "name": "hello.txt", "size": 5, "path": "storage/1_hello.txt"}
 files: list[dict] = []
 
-next_id = 1  # 次に使う id（Mission 5 で必要になる。名前は変えない）
+next_id = 0  # 次に使う id（Mission 5 で必要になる。名前は変えない）
 
 ALLOWED_EXTENSIONS = {".txt", ".csv", ".pdf"}
 
@@ -46,20 +46,23 @@ def health_check():
 # ---------------------------------------------------------------
 # TODO
 # ここが何をしているのか不明
-#  なぜここでstatus_codeを指定しているのか
-# →デコレーター上でstatus_codeを記述することで成功したときにこの値が帰るようになる
+# デコレーター上でstatus_codeを記述することで成功したときにこの値が帰るようになる
 @app.post("/files", status_code=201)
 async def upload_file(file: UploadFile):
-    file_id = len(files)+1
+    global next_id
+    file_id = next_id
     path = STORAGE / f"{file_id}_{file.filename}"
     # 何をしている？
     path.write_bytes(await file.read())
     # filesのリストに今回アップロードされたファイルを追加している
-    files.append({"id": file_id, "name": file.filename, "path": str(path)})
     size = file.size
-    print(f"ファイルリストの中身を表示する{files}")
+    files.append({"id": file_id, "name": file.filename, "path": str(path), "size": size})
     print(f"size は {size}")
-    return {"id": file_id, "name": file.filename, "size": file.size}
+    print(f"ファイルリストの中身を表示する{files}")
+    print(f"next_id は {next_id}")
+    next_id += 1
+    print(f"next_id は {next_id}")
+    return {"id": file_id, "name": file.filename, "size": size}
 
 
 # ---------------------------------------------------------------
@@ -81,7 +84,6 @@ def list_files():
 def download(file_id: int):
     for f in files:
         if f["id"] == file_id:
-            
             return FileResponse(f["path"], filename=f["name"])
     print("該当するものがありません")
     raise HTTPException(status_code=404, detail="ファイルが見つかりません")
@@ -92,15 +94,25 @@ def download(file_id: int):
 #   - リストからも、STORAGE のファイル本体からも消す
 #   - 見つからなければ 404
 # ---------------------------------------------------------------
-@app.delete("/files/{file_id}")
+@app.delete("/files/{file_id}", status_code=204)
 def delete(file_id: int):
-    for f in files:
-        if f["id"] == file_id:
-            files.pop(f)
-            Path(f).unlink()
-            return [{"status_code": 204}]
-    return HTTPException(status_code=404, detail="ファイルが見つかりません")
+    # i=0
+    # for i, f in enumerate(files):
+        
+    #     print(f"f : {f}")
+    #     if f["id"] == file_id:
+    #         files.pop(i)
+    #         # Path(f).unlink()
+    # return HTTPException(status_code=404, detail="ファイルが見つかりません")
 
+    for f in files:
+        print(f"f : {f}")
+        if f["id"] == file_id:
+            files.remove(f)
+            Path(f["path"]).unlink()
+            return
+
+    raise HTTPException(status_code=404, detail="ファイルが見つかりません")
 
 # ---------------------------------------------------------------
 # Mission 6：入力チェック（Mission 2 のアップロードに追加する）
