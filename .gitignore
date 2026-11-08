@@ -1,0 +1,12 @@
+# 仮想環境
+.venv/
+
+# Pythonのキャッシュ
+__pycache__/
+.pytest_cache/
+
+# アプリが保存したファイル
+storage/
+
+# 秘密情報（Step 3以降で使う）
+.env
